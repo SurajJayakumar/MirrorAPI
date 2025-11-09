@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { diffSchemas, type DiffReport } from "@/lib/diff";
 import { scoreDiff } from "@/lib/score";
@@ -224,6 +224,8 @@ export default function Page() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChangeType, setSelectedChangeType] = useState<"ALL" | "REMOVED_FIELD" | "ADDED_FIELD" | "TYPE_CHANGED">("ALL");
   const [schemaSearchQuery, setSchemaSearchQuery] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadJsonFromFile = async (f:File)=>JSON.parse(await f.text());
   const loadJsonFromUrl = async (url:string)=>{ const r=await fetch(`/api/fetch?url=${encodeURIComponent(url)}`); if(!r.ok) throw new Error(`Fetch ${r.status}`); return r.json(); };
@@ -241,10 +243,32 @@ export default function Page() {
       setSearchQuery("");
       setSelectedChangeType("ALL");
       setSchemaSearchQuery("");
+      setCurrentPage(1);
+      setItemsPerPage(10);
     }catch(e:any){ setError(e.message||"Analysis failed"); } finally{ setLoading(false); }
   }
 
   function loadSamples(){ setOldUrl("/samples/v1.json"); setNewUrl("/samples/v2.json"); }
+
+  // Adjust current page when filters change and page is out of bounds
+  useEffect(() => {
+    if (!report) return;
+    
+    const filteredChanges = report.changes.filter((c) => {
+      if (selectedChangeType !== "ALL" && c.kind !== selectedChangeType) {
+        return false;
+      }
+      if (searchQuery && !(c as any).path.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+
+    const totalPages = Math.ceil(filteredChanges.length / itemsPerPage);
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [report, selectedChangeType, searchQuery, itemsPerPage, currentPage]);
   
   function loadSampleFromAPI() {
     setError(null);
@@ -499,7 +523,7 @@ export default function Page() {
                         type="text"
                         placeholder="Search path names..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                         className="w-full rounded border border-gray-300 px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D62311] focus:border-transparent"
                       />
                     </div>
@@ -511,7 +535,7 @@ export default function Page() {
                       </label>
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={() => setSelectedChangeType("ALL")}
+                          onClick={() => { setSelectedChangeType("ALL"); setCurrentPage(1); }}
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             selectedChangeType === "ALL"
                               ? "bg-[#D62311] text-white"
@@ -521,7 +545,7 @@ export default function Page() {
                           All ({report.changes.length})
                         </button>
                         <button
-                          onClick={() => setSelectedChangeType("REMOVED_FIELD")}
+                          onClick={() => { setSelectedChangeType("REMOVED_FIELD"); setCurrentPage(1); }}
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             selectedChangeType === "REMOVED_FIELD"
                               ? "bg-red-600 text-white"
@@ -531,7 +555,7 @@ export default function Page() {
                           Removed ({report.summary.removed})
                         </button>
                         <button
-                          onClick={() => setSelectedChangeType("ADDED_FIELD")}
+                          onClick={() => { setSelectedChangeType("ADDED_FIELD"); setCurrentPage(1); }}
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             selectedChangeType === "ADDED_FIELD"
                               ? "bg-green-600 text-white"
@@ -541,7 +565,7 @@ export default function Page() {
                           Added ({report.summary.added})
                         </button>
                         <button
-                          onClick={() => setSelectedChangeType("TYPE_CHANGED")}
+                          onClick={() => { setSelectedChangeType("TYPE_CHANGED"); setCurrentPage(1); }}
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             selectedChangeType === "TYPE_CHANGED"
                               ? "bg-amber-600 text-white"
@@ -550,6 +574,25 @@ export default function Page() {
                         >
                           Type Changed ({report.changes.filter(c => c.kind === "TYPE_CHANGED").length})
                         </button>
+                      </div>
+                    </div>
+
+                    {/* Items Per Page and Pagination Controls */}
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div className="flex items-center gap-2">
+                        <label htmlFor="items-per-page" className="text-sm font-medium text-gray-700">
+                          Items per page:
+                        </label>
+                        <select
+                          id="items-per-page"
+                          value={itemsPerPage}
+                          onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                          className="rounded border border-gray-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D62311] focus:border-transparent"
+                        >
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                        </select>
                       </div>
                     </div>
                   </div>
@@ -577,6 +620,14 @@ export default function Page() {
                             return true;
                           });
 
+                          // Calculate pagination
+                          const totalItems = filteredChanges.length;
+                          const totalPages = Math.ceil(totalItems / itemsPerPage);
+                          const validPage = Math.min(Math.max(1, currentPage), totalPages || 1);
+                          const startIndex = (validPage - 1) * itemsPerPage;
+                          const endIndex = startIndex + itemsPerPage;
+                          const paginatedChanges = filteredChanges.slice(startIndex, endIndex);
+
                           if (filteredChanges.length === 0) {
                             return (
                               <tr>
@@ -587,8 +638,8 @@ export default function Page() {
                             );
                           }
 
-                          return filteredChanges.map((c, i) => (
-                            <tr key={i} className="hover:bg-gray-50 transition-colors">
+                          return paginatedChanges.map((c, i) => (
+                            <tr key={startIndex + i} className="hover:bg-gray-50 transition-colors">
                               <td className="px-6 py-4 font-mono text-xs text-gray-900">{(c as any).path}</td>
                               <td className="px-6 py-4">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -616,6 +667,103 @@ export default function Page() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Pagination Controls */}
+                  {(() => {
+                    const filteredChanges = report.changes.filter((c) => {
+                      if (selectedChangeType !== "ALL" && c.kind !== selectedChangeType) {
+                        return false;
+                      }
+                      if (searchQuery && !(c as any).path.toLowerCase().includes(searchQuery.toLowerCase())) {
+                        return false;
+                      }
+                      return true;
+                    });
+                    const totalItems = filteredChanges.length;
+                    const totalPages = Math.ceil(totalItems / itemsPerPage);
+                    const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+                    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+                    if (totalPages <= 1) return null;
+
+                    const getPageNumbers = () => {
+                      const pages: (number | string)[] = [];
+                      const maxVisible = 5;
+                      
+                      if (totalPages <= maxVisible) {
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        if (currentPage <= 3) {
+                          for (let i = 1; i <= 4; i++) {
+                            pages.push(i);
+                          }
+                          pages.push("...");
+                          pages.push(totalPages);
+                        } else if (currentPage >= totalPages - 2) {
+                          pages.push(1);
+                          pages.push("...");
+                          for (let i = totalPages - 3; i <= totalPages; i++) {
+                            pages.push(i);
+                          }
+                        } else {
+                          pages.push(1);
+                          pages.push("...");
+                          for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                            pages.push(i);
+                          }
+                          pages.push("...");
+                          pages.push(totalPages);
+                        }
+                      }
+                      return pages;
+                    };
+
+                    return (
+                      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-wrap gap-4">
+                        <div className="text-sm text-gray-700">
+                          Showing <span className="font-medium">{startItem}</span> to <span className="font-medium">{endItem}</span> of{" "}
+                          <span className="font-medium">{totalItems}</span> results
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Previous
+                          </button>
+                          <div className="flex items-center gap-1">
+                            {getPageNumbers().map((page, idx) => (
+                              page === "..." ? (
+                                <span key={`ellipsis-${idx}`} className="px-2 py-2 text-gray-500">...</span>
+                              ) : (
+                                <button
+                                  key={page}
+                                  onClick={() => setCurrentPage(page as number)}
+                                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                                    currentPage === page
+                                      ? "bg-[#D62311] text-white"
+                                      : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              )
+                            ))}
+                          </div>
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
