@@ -5,10 +5,13 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import Image from "next/image"
+import { useTheme } from "@/components/theme/theme-provider"
+import { ThemeToggle } from "@/components/theme/theme-toggle"
 
 export default function SignInPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { theme } = useTheme()
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -16,10 +19,19 @@ export default function SignInPage() {
     }
   }, [status, router])
 
+  // Theme colors
+  const bgColor = theme === "light" ? "bg-white" : "bg-black";
+  const headerBgColor = theme === "light" ? "bg-[#D62311]" : "bg-[#76B900]";
+  const cardBgColor = theme === "light" ? "bg-white" : "bg-gray-900";
+  const borderColor = theme === "light" ? "border-gray-200" : "border-gray-800";
+  const textColor = theme === "light" ? "text-gray-900" : "text-gray-100";
+  const mutedTextColor = theme === "light" ? "text-gray-600" : "text-gray-400";
+  const primaryTextColor = theme === "light" ? "text-[#D62311]" : "text-[#76B900]";
+
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-gray-600">Loading...</div>
+      <div className={`min-h-screen flex items-center justify-center ${bgColor} transition-colors`}>
+        <div className={mutedTextColor}>Loading...</div>
       </div>
     )
   }
@@ -29,18 +41,18 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen ${bgColor} transition-colors`}>
       {/* Header matching main page */}
-      <header className="bg-[#D62311] text-white shadow-md">
+      <header className={`${headerBgColor} text-white shadow-md transition-colors`}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <Image 
-                src="/samples/logo.png" 
-                alt="State Farm Logo" 
+                src={theme === "light" ? "/samples/logo.png" : "/samples/nvidia.png"} 
+                alt={theme === "light" ? "State Farm Logo" : "NVIDIA Logo"} 
                 width={40} 
                 height={40}
-                className="object-contain cursor-pointer"
+                className="object-contain cursor-pointer transition-opacity"
                 onClick={() => router.push('/')}
               />
               <button
@@ -50,25 +62,26 @@ export default function SignInPage() {
                 MirrorAPI
               </button>
             </div>
+            <ThemeToggle />
           </div>
         </div>
       </header>
 
       {/* Sign In Content */}
       <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] px-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 border border-gray-200">
+        <div className={`max-w-md w-full ${cardBgColor} rounded-lg shadow-lg p-8 border ${borderColor} transition-colors`}>
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-[#D62311] mb-2">
+            <h1 className={`text-3xl font-bold ${primaryTextColor} mb-2 transition-colors`}>
               Welcome to API Migration Copilot
             </h1>
-            <p className="text-gray-600">
+            <p className={mutedTextColor}>
               Sign in to get started with API schema comparison and migration
             </p>
           </div>
 
           <SignInButton />
 
-          <div className="mt-6 text-center text-sm text-gray-500">
+          <div className={`mt-6 text-center text-sm ${mutedTextColor} transition-colors`}>
             <p>
               By signing in, you agree to our terms of service and privacy policy.
             </p>

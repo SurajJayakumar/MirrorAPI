@@ -2,9 +2,11 @@
 
 import { signIn } from "next-auth/react"
 import { useState } from "react"
+import { useTheme } from "@/components/theme/theme-provider"
 
 export function SignInButton() {
   const [isLoading, setIsLoading] = useState(false)
+  const { theme } = useTheme()
 
   const handleSignIn = async (provider: "google" | "github") => {
     setIsLoading(true)
@@ -22,7 +24,11 @@ export function SignInButton() {
       <button
         onClick={() => handleSignIn("google")}
         disabled={isLoading}
-        className="flex items-center justify-center gap-3 px-6 py-3 bg-white border-2 border-gray-300 rounded-lg shadow-sm hover:border-[#D62311] hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white transition-colors"
+        className={`flex items-center justify-center gap-3 px-6 py-3 ${
+          theme === "light" 
+            ? "bg-white border-2 border-gray-300 hover:border-[#D62311] hover:bg-red-50 disabled:hover:border-gray-300 disabled:hover:bg-white" 
+            : "bg-gray-800 border-2 border-gray-700 hover:border-[#76B900] hover:bg-green-950 disabled:hover:border-gray-700 disabled:hover:bg-gray-800"
+        } rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24">
           <path
@@ -42,7 +48,7 @@ export function SignInButton() {
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
           />
         </svg>
-        <span className="text-gray-700 font-medium">
+        <span className={`${theme === "light" ? "text-gray-700" : "text-gray-100"} font-medium transition-colors`}>
           {isLoading ? "Signing in..." : "Continue with Google"}
         </span>
       </button>
@@ -50,7 +56,11 @@ export function SignInButton() {
       <button
         onClick={() => handleSignIn("github")}
         disabled={isLoading}
-        className="flex items-center justify-center gap-3 px-6 py-3 bg-gray-900 text-white rounded-lg shadow-sm hover:bg-[#D62311] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-900 transition-colors"
+        className={`flex items-center justify-center gap-3 px-6 py-3 ${
+          theme === "light" 
+            ? "bg-gray-900 hover:bg-[#D62311] disabled:hover:bg-gray-900" 
+            : "bg-gray-800 hover:bg-[#76B900] disabled:hover:bg-gray-800"
+        } text-white rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
       >
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
           <path
