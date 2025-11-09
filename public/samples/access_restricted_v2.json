@@ -1,0 +1,65 @@
+{
+  "user_id": "USR-2024-001",
+  "profile": {
+    "full_name": "Sarah Johnson",
+    "email": "sarah.johnson@example.com",
+    "phone": null,
+    "date_of_birth": null,
+    "ssn": null,
+    "address": {
+      "street": null,
+      "city": "Austin",
+      "state": "TX",
+      "zip_code": "78701",
+      "country": "USA"
+    }
+  },
+  "financial": {
+    "account_number": null,
+    "credit_score": null,
+    "annual_income": null,
+    "bank_balance": null,
+    "tax_id": null,
+    "investment_portfolio": {
+      "error": "ACCESS_DENIED",
+      "message": "Insufficient permissions to access investment data",
+      "required_permission": "finance:read:investments"
+    }
+  },
+  "employment": {
+    "employer": "Tech Corp Inc",
+    "position": "Senior Software Engineer",
+    "salary": null,
+    "start_date": "2020-03-01",
+    "employee_id": null
+  },
+  "permissions": {
+    "role": "viewer",
+    "access_level": "restricted",
+    "departments": ["engineering"]
+  },
+  "metadata": {
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-12-01T14:22:00Z",
+    "last_login": null
+  },
+  "access_restrictions": {
+    "restricted_fields": [
+      "profile.phone",
+      "profile.date_of_birth",
+      "profile.ssn",
+      "profile.address.street",
+      "financial.account_number",
+      "financial.credit_score",
+      "financial.annual_income",
+      "financial.bank_balance",
+      "financial.tax_id",
+      "financial.investment_portfolio",
+      "employment.salary",
+      "employment.employee_id",
+      "metadata.last_login"
+    ],
+    "reason": "Limited access due to viewer role permissions"
+  }
+}
+

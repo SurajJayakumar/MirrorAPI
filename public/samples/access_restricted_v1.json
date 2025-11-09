@@ -1,0 +1,47 @@
+{
+  "user_id": "USR-2024-001",
+  "profile": {
+    "full_name": "Sarah Johnson",
+    "email": "sarah.johnson@example.com",
+    "phone": "+1-555-0123",
+    "date_of_birth": "1990-05-15",
+    "ssn": "***-**-1234",
+    "address": {
+      "street": "123 Main Street",
+      "city": "Austin",
+      "state": "TX",
+      "zip_code": "78701",
+      "country": "USA"
+    }
+  },
+  "financial": {
+    "account_number": "ACC-987654321",
+    "credit_score": 750,
+    "annual_income": 125000,
+    "bank_balance": 45230.50,
+    "tax_id": "12-3456789",
+    "investment_portfolio": {
+      "total_value": 234567.89,
+      "stocks": 150000.00,
+      "bonds": 84567.89
+    }
+  },
+  "employment": {
+    "employer": "Tech Corp Inc",
+    "position": "Senior Software Engineer",
+    "salary": 125000,
+    "start_date": "2020-03-01",
+    "employee_id": "EMP-789456"
+  },
+  "permissions": {
+    "role": "admin",
+    "access_level": "full",
+    "departments": ["engineering", "finance", "hr"]
+  },
+  "metadata": {
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-12-01T14:22:00Z",
+    "last_login": "2024-12-15T09:15:00Z"
+  }
+}
+
