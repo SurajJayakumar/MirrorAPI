@@ -622,8 +622,9 @@ export default function Page() {
           </div>
 
           {/* Right Column - Form Panel (Light Gray Background) */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-100 rounded-lg p-6 sticky top-4">
+          <div className="lg:col-span-1 space-y-6">
+            {/* Form Panel - Fixed/Sticky */}
+            <div className="bg-gray-100 rounded-lg p-6 top-8">
               <h3 className="text-lg font-bold text-gray-800 mb-4">Ready to analyze your APIs?</h3>
               
               <div className="space-y-4">
@@ -674,6 +675,93 @@ export default function Page() {
                 </button>
               </div>
             </div>
+
+            {/* Risk Score Explanation Section */}
+            {report && typeof score === "number" && (
+              <div className="bg-gray-100 rounded-lg p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Understanding Your Migration Risk Score</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-700 mb-3">
+                      Your Migration Risk Score of <span className="font-bold text-gray-900">{score}/100</span> indicates a{" "}
+                      <span className={`font-bold ${
+                        score < 31 ? "text-green-600" : score < 71 ? "text-amber-600" : "text-[#D62311]"
+                      }`}>
+                        {score < 31 ? "Low Risk" : score < 71 ? "Medium Risk" : "High Risk"}
+                      </span>{" "}
+                      migration. This score is calculated based on the types and severity of changes detected between your API versions.
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Score Ranges:</h4>
+                    <div className="space-y-2 text-sm text-gray-700">
+                      <div className="flex items-start gap-2">
+                        <span className="inline-flex items-center justify-center w-16 h-6 rounded bg-green-600 text-white text-xs font-bold shrink-0">0-30</span>
+                        <span><strong>Low Risk:</strong> MINOR/PATCH level changes. Mostly backward-compatible additions that don't break existing clients.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="inline-flex items-center justify-center w-16 h-6 rounded bg-amber-500 text-white text-xs font-bold shrink-0">31-70</span>
+                        <span><strong>Medium Risk:</strong> Some breaking changes detected. Requires client code updates but migration is manageable.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="inline-flex items-center justify-center w-16 h-6 rounded bg-[#D62311] text-white text-xs font-bold shrink-0">71-100</span>
+                        <span><strong>High Risk:</strong> MAJOR breaking changes. Significant API overhaul requiring extensive client-side refactoring.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-300 pt-4">
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Scoring Criteria:</h4>
+                    <div className="space-y-2 text-sm text-gray-700">
+                      <div className="flex items-start gap-2">
+                        <span className="text-[#D62311] font-bold shrink-0">•</span>
+                        <div>
+                          <strong>Removed Fields (40 points):</strong> Fields that were deleted from the API. 
+                          This is the most severe change as it completely breaks clients using these fields.
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-amber-600 font-bold shrink-0">•</span>
+                        <div>
+                          <strong>Type Changes - Structural (35 points):</strong> Changing to/from objects or arrays. 
+                          Example: A number field becomes an object with nested properties.
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-amber-600 font-bold shrink-0">•</span>
+                        <div>
+                          <strong>Type Changes - Incompatible (25 points):</strong> Types that cannot be safely converted. 
+                          Example: A boolean field becomes a number.
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-yellow-600 font-bold shrink-0">•</span>
+                        <div>
+                          <strong>Type Changes - Compatible (15 points):</strong> Types that can sometimes be converted. 
+                          Example: A string field becomes a number (e.g., "123" → 123).
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-green-600 font-bold shrink-0">•</span>
+                        <div>
+                          <strong>Added Fields (5 points):</strong> New fields added to the API. 
+                          Generally backward-compatible but adds complexity to the schema.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                    <p className="text-xs text-blue-800">
+                      <strong>Note:</strong> The score uses an exponential normalization formula to prevent score explosion 
+                      with many changes while still accurately reflecting the compound risk of multiple breaking changes.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
