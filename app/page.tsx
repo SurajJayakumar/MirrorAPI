@@ -8,6 +8,8 @@ import { downloadCSV, downloadPDF } from "@/lib/export";
 import { UserMenu } from "@/components/auth/user-menu";
 import { SignInButton } from "@/components/auth/signin-button";
 import { useRouter } from "next/navigation";
+import { useTheme } from "@/components/theme/theme-provider";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 function formatJson(obj: any): string {
   return JSON.stringify(obj, null, 2);
@@ -21,7 +23,7 @@ function getHighlightClass(path: string, report: DiffReport | null, isOld: boole
   if (!change) return "";
   
   if (change.kind === "REMOVED_FIELD") {
-    return isOld ? "bg-red-100 border-l-4 border-[#D62311] py-0.5 px-2 -mx-2 my-0.5 rounded-r block" : "";
+    return isOld ? "bg-red-100 dark:bg-red-900/30 border-l-4 border-red-600 dark:border-red-500 py-0.5 px-2 -mx-2 my-0.5 rounded-r block" : "";
   }
   if (change.kind === "ADDED_FIELD") {
     return isOld ? "" : "bg-green-100 border-l-4 border-green-600 py-0.5 px-2 -mx-2 my-0.5 rounded-r block";
@@ -47,7 +49,7 @@ function escapeRegex(str: string): string {
 }
 
 // Highlight text with search matches
-function highlightSearchText(text: string, searchQuery: string): JSX.Element {
+function highlightSearchText(text: string, searchQuery: string, theme: "light" | "dark" = "light"): JSX.Element {
   if (!searchQuery) {
     return <span>{text}</span>;
   }
@@ -57,6 +59,7 @@ function highlightSearchText(text: string, searchQuery: string): JSX.Element {
   const parts: JSX.Element[] = [];
   let lastIndex = 0;
   let index = textLower.indexOf(query);
+  const highlightBg = theme === "light" ? "bg-yellow-200" : "bg-yellow-600";
   
   while (index !== -1) {
     // Add text before match
@@ -65,7 +68,7 @@ function highlightSearchText(text: string, searchQuery: string): JSX.Element {
     }
     // Add highlighted match
     parts.push(
-      <span key={index} className="bg-yellow-200 font-semibold">
+      <span key={index} className={`${highlightBg} font-semibold`}>
         {text.substring(index, index + searchQuery.length)}
       </span>
     );
@@ -88,52 +91,61 @@ function renderJsonWithHighlights(
   isOld: boolean, 
   currentPath: string = "", 
   indent: number = 0,
-  searchQuery: string = ""
+  searchQuery: string = "",
+  theme: "light" | "dark" = "light"
 ): JSX.Element {
   const indentStr = "  ".repeat(indent);
   const hasSearchMatch = matchesSearch(currentPath, obj, searchQuery);
+  const searchHighlight = hasSearchMatch ? (theme === "light" ? "bg-yellow-200" : "bg-yellow-600") : "";
+  const nullColor = theme === "light" ? "text-gray-500" : "text-gray-400";
+  const stringColor = theme === "light" ? "text-green-700" : "text-green-400";
+  const numberColor = theme === "light" ? "text-blue-700" : "text-blue-400";
+  const booleanColor = theme === "light" ? "text-purple-700" : "text-purple-400";
+  const bracketColor = theme === "light" ? "text-gray-900" : "text-gray-200";
+  const punctuationColor = theme === "light" ? "text-gray-700" : "text-gray-300";
   
   if (obj === null) {
     const highlight = getHighlightClass(currentPath, report, isOld);
-    const searchHighlight = hasSearchMatch ? "bg-yellow-200" : "";
-    return <span className={`${highlight} ${searchHighlight}`}>{highlightSearchText("null", searchQuery)}</span>;
+    return <span className={`${highlight} ${searchHighlight} ${nullColor}`}>{highlightSearchText("null", searchQuery, theme)}</span>;
   }
   
   if (typeof obj === "string") {
     const highlight = getHighlightClass(currentPath, report, isOld);
-    const searchHighlight = hasSearchMatch ? "bg-yellow-200" : "";
     const jsonStr = JSON.stringify(obj);
-    return <span className={`${highlight} ${searchHighlight}`}>{highlightSearchText(jsonStr, searchQuery)}</span>;
+    return <span className={`${highlight} ${searchHighlight} ${stringColor}`}>{highlightSearchText(jsonStr, searchQuery, theme)}</span>;
   }
   
-  if (typeof obj === "number" || typeof obj === "boolean") {
+  if (typeof obj === "number") {
     const highlight = getHighlightClass(currentPath, report, isOld);
-    const searchHighlight = hasSearchMatch ? "bg-yellow-200" : "";
     const str = String(obj);
-    return <span className={`${highlight} ${searchHighlight}`}>{highlightSearchText(str, searchQuery)}</span>;
+    return <span className={`${highlight} ${searchHighlight} ${numberColor}`}>{highlightSearchText(str, searchQuery, theme)}</span>;
+  }
+  
+  if (typeof obj === "boolean") {
+    const highlight = getHighlightClass(currentPath, report, isOld);
+    const str = String(obj);
+    return <span className={`${highlight} ${searchHighlight} ${booleanColor}`}>{highlightSearchText(str, searchQuery, theme)}</span>;
   }
   
   if (Array.isArray(obj)) {
     const highlight = getHighlightClass(currentPath, report, isOld);
-    const hasSearchMatch = matchesSearch(currentPath, obj, searchQuery);
-    const searchHighlight = hasSearchMatch ? "bg-yellow-200" : "";
     if (obj.length === 0) {
-      return <span className={`${highlight} ${searchHighlight}`}>[]</span>;
+      return <span className={`${highlight} ${searchHighlight} ${bracketColor}`}>[]</span>;
     }
     return (
       <>
-        <span className={`${highlight} ${searchHighlight}`}>[</span>
+        <span className={`${highlight} ${searchHighlight} ${bracketColor}`}>[</span>
         <br />
         {obj.map((item, i) => (
           <span key={i}>
             <span>{indentStr}  </span>
-            {renderJsonWithHighlights(item, report, isOld, `${currentPath}[${i}]`, indent + 1, searchQuery)}
-            {i < obj.length - 1 && <span>,</span>}
+            {renderJsonWithHighlights(item, report, isOld, `${currentPath}[${i}]`, indent + 1, searchQuery, theme)}
+            {i < obj.length - 1 && <span className={punctuationColor}>,</span>}
             <br />
           </span>
         ))}
         <span>{indentStr}</span>
-        <span className={`${highlight} ${searchHighlight}`}>]</span>
+        <span className={`${highlight} ${searchHighlight} ${bracketColor}`}>]</span>
       </>
     );
   }
@@ -141,13 +153,12 @@ function renderJsonWithHighlights(
   if (typeof obj === "object") {
     const keys = Object.keys(obj);
     const highlight = getHighlightClass(currentPath, report, isOld);
-    const hasSearchMatch = matchesSearch(currentPath, obj, searchQuery);
-    const searchHighlight = hasSearchMatch ? "bg-yellow-200" : "";
+    const keyColor = theme === "light" ? "text-[#003478]" : "text-[#76B900]";
     // Check if this object itself has a TYPE_CHANGED (e.g., changed from string to object)
     const hasTypeChange = report?.changes.some(c => (c as any).path === currentPath && c.kind === "TYPE_CHANGED");
     
     if (keys.length === 0) {
-      return <span className={`${highlight} ${searchHighlight}`}>{`{}`}</span>;
+      return <span className={`${highlight} ${searchHighlight} ${bracketColor}`}>{`{}`}</span>;
     }
     
     // If this object has a TYPE_CHANGED, wrap the entire object content in the highlight
@@ -155,7 +166,7 @@ function renderJsonWithHighlights(
     if (hasTypeChange && highlight) {
       return (
         <span className={`${highlight} ${searchHighlight} block`}>
-          <span className={`${highlight} ${searchHighlight}`}>{`{`}</span>
+          <span className={`${highlight} ${searchHighlight} ${bracketColor}`}>{`{`}</span>
           <br />
           {keys.map((key, i) => {
             const keyPath = currentPath ? `${currentPath}.${key}` : key;
@@ -163,23 +174,23 @@ function renderJsonWithHighlights(
             const hasChange = valueChange !== undefined;
             const changeHighlight = hasChange ? getHighlightClass(keyPath, report, isOld) : highlight;
             const keyMatchesSearch = matchesSearch(key, key, searchQuery) || matchesSearch(keyPath, obj[key], searchQuery);
-            const keySearchHighlight = keyMatchesSearch ? "bg-yellow-200" : "";
+            const keySearchHighlight = keyMatchesSearch ? (theme === "light" ? "bg-yellow-200" : "bg-yellow-600") : "";
             
             return (
               <span key={key} className={`${changeHighlight} ${keySearchHighlight}`}>
                 <span>{indentStr}  </span>
-                <span className="text-[#003478] font-medium">
-                  {highlightSearchText(`"${key}"`, searchQuery)}
+                <span className={`${keyColor} font-medium`}>
+                  {highlightSearchText(`"${key}"`, searchQuery, theme)}
                 </span>
-                <span>: </span>
-                {renderJsonWithHighlights(obj[key], report, isOld, keyPath, indent + 1, searchQuery)}
-                {i < keys.length - 1 && <span>,</span>}
+                <span className={punctuationColor}>: </span>
+                {renderJsonWithHighlights(obj[key], report, isOld, keyPath, indent + 1, searchQuery, theme)}
+                {i < keys.length - 1 && <span className={punctuationColor}>,</span>}
                 <br />
               </span>
             );
           })}
           <span>{indentStr}</span>
-          <span className={`${highlight} ${searchHighlight}`}>{`}`}</span>
+          <span className={`${highlight} ${searchHighlight} ${bracketColor}`}>{`}`}</span>
         </span>
       );
     }
@@ -187,7 +198,7 @@ function renderJsonWithHighlights(
     // Normal rendering when no TYPE_CHANGED at this level
     return (
       <>
-        <span className={`${highlight} ${searchHighlight}`}>{`{`}</span>
+        <span className={`${highlight} ${searchHighlight} ${bracketColor}`}>{`{`}</span>
         <br />
         {keys.map((key, i) => {
           const keyPath = currentPath ? `${currentPath}.${key}` : key;
@@ -195,24 +206,24 @@ function renderJsonWithHighlights(
           const hasChange = valueChange !== undefined;
           const changeHighlight = hasChange ? getHighlightClass(keyPath, report, isOld) : "";
           const keyMatchesSearch = matchesSearch(key, key, searchQuery) || matchesSearch(keyPath, obj[key], searchQuery);
-          const keySearchHighlight = keyMatchesSearch ? "bg-yellow-200" : "";
+          const keySearchHighlight = keyMatchesSearch ? (theme === "light" ? "bg-yellow-200" : "bg-yellow-600") : "";
           
           // Wrap the entire key-value pair in highlight if there's a change or search match
           return (
             <span key={key} className={`${hasChange ? changeHighlight : ""} ${keySearchHighlight}`}>
               <span>{indentStr}  </span>
-              <span className="text-[#003478] font-medium">
-                {highlightSearchText(`"${key}"`, searchQuery)}
+              <span className={`${keyColor} font-medium`}>
+                {highlightSearchText(`"${key}"`, searchQuery, theme)}
               </span>
-              <span>: </span>
-              {renderJsonWithHighlights(obj[key], report, isOld, keyPath, indent + 1, searchQuery)}
-              {i < keys.length - 1 && <span>,</span>}
+              <span className={punctuationColor}>: </span>
+              {renderJsonWithHighlights(obj[key], report, isOld, keyPath, indent + 1, searchQuery, theme)}
+              {i < keys.length - 1 && <span className={punctuationColor}>,</span>}
               <br />
             </span>
           );
         })}
         <span>{indentStr}</span>
-        <span className={`${highlight} ${searchHighlight}`}>{`}`}</span>
+        <span className={`${highlight} ${searchHighlight} ${bracketColor}`}>{`}`}</span>
       </>
     );
   }
@@ -534,6 +545,7 @@ function renderInlineMarkdown(text: string): (string | JSX.Element)[] {
 export default function Page() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { theme } = useTheme();
   const [oldUrl,setOldUrl]=useState(""); const [newUrl,setNewUrl]=useState("");
   const [oldFile,setOldFile]=useState<File|null>(null); const [newFile,setNewFile]=useState<File|null>(null);
   const [oldJson,setOldJson]=useState<any>(null); const [newJson,setNewJson]=useState<any>(null);
@@ -719,21 +731,41 @@ export default function Page() {
     setScore(null);
   }
 
+  // Theme colors
+  const primaryColor = theme === "light" ? "#D62311" : "#76B900"; // StateFarm red : NVIDIA green
+  const primaryDarkColor = theme === "light" ? "#B41D0E" : "#5A8F00"; // Darker red : Darker green
+  const bgColor = theme === "light" ? "bg-white" : "bg-black";
+  const headerBgColor = theme === "light" ? "bg-[#D62311]" : "bg-[#76B900]";
+  const textColor = theme === "light" ? "text-gray-900" : "text-gray-100";
+  const cardBgColor = theme === "light" ? "bg-white" : "bg-gray-900";
+  const borderColor = theme === "light" ? "border-gray-200" : "border-gray-800";
+  const inputBgColor = theme === "light" ? "bg-white" : "bg-gray-800";
+  const mutedBgColor = theme === "light" ? "bg-gray-50" : "bg-gray-950";
+  const mutedTextColor = theme === "light" ? "text-gray-700" : "text-gray-300";
+  // JSON preview specific colors for better readability
+  const jsonBgColor = theme === "light" ? "bg-gray-50" : "bg-gray-800";
+  const jsonTextColor = theme === "light" ? "text-gray-900" : "text-gray-100";
+  const jsonKeyColor = theme === "light" ? "text-[#003478]" : "text-[#76B900]";
+  const jsonStringColor = theme === "light" ? "text-green-700" : "text-green-400";
+  const jsonNumberColor = theme === "light" ? "text-blue-700" : "text-blue-400";
+  const jsonBooleanColor = theme === "light" ? "text-purple-700" : "text-purple-400";
+  const jsonNullColor = theme === "light" ? "text-gray-500" : "text-gray-400";
+  const searchHighlightBg = theme === "light" ? "bg-yellow-200" : "bg-yellow-600";
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Fixed Red Header Bar - StateFarm style */}
-      <header className="bg-[#D62311] text-white shadow-md">
+    <div className={`min-h-screen ${bgColor} transition-colors`}>
+      {/* Header Bar - StateFarm red (light) or NVIDIA green (dark) */}
+      <header className={`${headerBgColor} text-white shadow-md transition-colors`}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <Image 
-                src="/samples/logo.png" 
-                alt="State Farm Logo" 
+                src={theme === "light" ? "/samples/logo.png" : "/samples/nvidia.png"} 
+                alt={theme === "light" ? "State Farm Logo" : "NVIDIA Logo"} 
                 width={40} 
                 height={40}
-                className="object-contain cursor-pointer"
+                className="object-contain cursor-pointer transition-opacity"
                 onClick={() => router.push('/')}
-
               />
               <button
                 onClick={() => router.push('/')}
@@ -755,6 +787,7 @@ export default function Page() {
               >
                 Load Sample from API
               </button>
+              <ThemeToggle />
               {status === "loading" ? (
                 <div className="text-sm">Loading...</div>
               ) : session ? (
@@ -762,7 +795,7 @@ export default function Page() {
               ) : (
                 <button
                   onClick={() => router.push("/auth/signin")}
-                  className="px-4 py-2 bg-white text-[#D62311] rounded-lg font-medium hover:bg-gray-100 transition-colors"
+                  className={`px-4 py-2 bg-white ${theme === "light" ? "text-[#D62311]" : "text-[#76B900]"} rounded-lg font-medium hover:bg-gray-100 transition-colors`}
                 >
                   Sign In
                 </button>
@@ -779,13 +812,13 @@ export default function Page() {
           <div className="lg:col-span-2 space-y-6">
             {/* Main Heading */}
             <div>
-              <h2 className="text-4xl font-bold text-[#D62311] mb-2">API Schema Migration Analysis</h2>
-              <h3 className="text-3xl font-bold text-black mb-4">Compare Your API Versions with Confidence</h3>
-              <p className="text-base text-gray-700 leading-relaxed mb-4">
+              <h2 className={`text-4xl font-bold mb-2 ${theme === "light" ? "text-[#D62311]" : "text-[#76B900]"} transition-colors`}>API Schema Migration Analysis</h2>
+              <h3 className={`text-3xl font-bold mb-4 ${textColor} transition-colors`}>Compare Your API Versions with Confidence</h3>
+              <p className={`text-base leading-relaxed mb-4 ${mutedTextColor} transition-colors`}>
                 Analyze and compare API schema changes to identify breaking changes, new fields, and migration risks. 
                 Get detailed insights into what's changed between API versions and understand the impact on your integration.
               </p>
-              <p className="text-base text-gray-700 leading-relaxed">
+              <p className={`text-base leading-relaxed ${mutedTextColor} transition-colors`}>
                 Our migration analysis tool helps you understand schema differences, assess migration risks, and plan your API updates effectively.
               </p>
             </div>
@@ -794,38 +827,38 @@ export default function Page() {
             {oldJson && newJson && (
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-2xl font-bold text-[#D62311] mb-3">Schema Comparison</h4>
-                  <p className="text-base text-gray-700 mb-4">Side-by-side comparison of your API schemas</p>
+                  <h4 className={`text-2xl font-bold mb-3 ${theme === "light" ? "text-[#D62311]" : "text-[#76B900]"} transition-colors`}>Schema Comparison</h4>
+                  <p className={`text-base mb-4 ${mutedTextColor} transition-colors`}>Side-by-side comparison of your API schemas</p>
                 </div>
                 
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="p-4 border-b border-gray-200 bg-gray-50 space-y-4">
+                <div className={`${cardBgColor} border ${borderColor} rounded-lg overflow-hidden transition-colors`}>
+                  <div className={`p-4 border-b ${borderColor} ${mutedBgColor} space-y-4 transition-colors`}>
                     <div className="flex items-center justify-between flex-wrap gap-4">
-                      <h5 className="text-lg font-semibold text-gray-900">JSON Schema Preview</h5>
+                      <h5 className={`text-lg font-semibold ${textColor} transition-colors`}>JSON Schema Preview</h5>
                       {report && (
                         <div className="flex flex-wrap gap-4 text-xs">
                           <div className="flex items-center gap-2">
-                            <span className="inline-block w-4 h-4 bg-red-50 border-l-4 border-[#D62311] rounded-r"></span>
-                            <span className="text-gray-700 font-medium">Removed</span>
+                            <span className={`inline-block w-4 h-4 ${theme === "light" ? "bg-red-50 border-[#D62311]" : "bg-red-900/30 border-red-500"} border-l-4 rounded-r`}></span>
+                            <span className={`${mutedTextColor} font-medium transition-colors`}>Removed</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="inline-block w-4 h-4 bg-green-50 border-l-4 border-green-600 rounded-r"></span>
-                            <span className="text-gray-700 font-medium">Added</span>
+                            <span className={`${mutedTextColor} font-medium transition-colors`}>Added</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="inline-block w-4 h-4 bg-amber-50 border-l-4 border-amber-600 rounded-r"></span>
-                            <span className="text-gray-700 font-medium">Risky</span>
+                            <span className={`${mutedTextColor} font-medium transition-colors`}>Risky</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="inline-block w-4 h-4 bg-yellow-200 rounded"></span>
-                            <span className="text-gray-700 font-medium">Search Match</span>
+                            <span className={`${mutedTextColor} font-medium transition-colors`}>Search Match</span>
                           </div>
                         </div>
                       )}
                     </div>
                     {/* Search Bar */}
                     <div>
-                      <label htmlFor="schema-search" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="schema-search" className={`block text-sm font-medium ${mutedTextColor} mb-2 transition-colors`}>
                         Search Schema
                       </label>
                       <input
@@ -834,18 +867,18 @@ export default function Page() {
                         placeholder="Search for keys, values, or paths..."
                         value={schemaSearchQuery}
                         onChange={(e) => setSchemaSearchQuery(e.target.value)}
-                        className="w-full rounded border border-gray-300 px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D62311] focus:border-transparent"
+                        className={`w-full rounded border ${borderColor} px-4 py-2 text-sm ${inputBgColor} ${textColor} focus:outline-none focus:ring-2 ${theme === "light" ? "focus:ring-[#D62311]" : "focus:ring-[#76B900]"} focus:border-transparent transition-colors`}
                       />
                     </div>
                   </div>
                   <div className="overflow-auto max-h-96">
                     <div className="grid grid-cols-2 gap-4 p-4">
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-gray-700 mb-2 pb-1 border-b border-gray-200 sticky top-0 bg-white z-10">Old Schema</div>
-                        <div className="rounded border border-gray-200 bg-gray-50 p-3 text-xs font-mono leading-relaxed">
-                          {report ? renderJsonWithHighlights(oldJson, report, true, "", 0, schemaSearchQuery) : (
+                        <div className={`text-sm font-semibold ${mutedTextColor} mb-2 pb-1 border-b ${borderColor} sticky top-0 ${cardBgColor} z-10 transition-colors`}>Old Schema</div>
+                        <div className={`rounded border ${borderColor} ${jsonBgColor} p-3 text-xs font-mono leading-relaxed transition-colors`}>
+                          {report ? renderJsonWithHighlights(oldJson, report, true, "", 0, schemaSearchQuery, theme) : (
                             schemaSearchQuery ? (
-                              <pre className="whitespace-pre text-gray-800">
+                              <pre className={`whitespace-pre ${jsonTextColor} transition-colors`}>
                                 {formatJson(oldJson).split('\n').map((line, i) => {
                                   const queryLower = schemaSearchQuery.toLowerCase();
                                   if (line.toLowerCase().includes(queryLower)) {
@@ -855,7 +888,7 @@ export default function Page() {
                                       <span key={i}>
                                         {parts.map((part, j) => 
                                           part.toLowerCase() === queryLower ? (
-                                            <span key={j} className="bg-yellow-200 font-semibold">{part}</span>
+                                            <span key={j} className={`${searchHighlightBg} font-semibold`}>{part}</span>
                                           ) : (
                                             <span key={j}>{part}</span>
                                           )
@@ -868,17 +901,17 @@ export default function Page() {
                                 })}
                               </pre>
                             ) : (
-                              <pre className="whitespace-pre text-gray-800">{formatJson(oldJson)}</pre>
+                              <pre className={`whitespace-pre ${jsonTextColor} transition-colors`}>{formatJson(oldJson)}</pre>
                             )
                           )}
                         </div>
                       </div>
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-gray-700 mb-2 pb-1 border-b border-gray-200 sticky top-0 bg-white z-10">New Schema</div>
-                        <div className="rounded border border-gray-200 bg-gray-50 p-3 text-xs font-mono leading-relaxed">
-                          {report ? renderJsonWithHighlights(newJson, report, false, "", 0, schemaSearchQuery) : (
+                        <div className={`text-sm font-semibold ${mutedTextColor} mb-2 pb-1 border-b ${borderColor} sticky top-0 ${cardBgColor} z-10 transition-colors`}>New Schema</div>
+                        <div className={`rounded border ${borderColor} ${jsonBgColor} p-3 text-xs font-mono leading-relaxed transition-colors`}>
+                          {report ? renderJsonWithHighlights(newJson, report, false, "", 0, schemaSearchQuery, theme) : (
                             schemaSearchQuery ? (
-                              <pre className="whitespace-pre text-gray-800">
+                              <pre className={`whitespace-pre ${jsonTextColor} transition-colors`}>
                                 {formatJson(newJson).split('\n').map((line, i) => {
                                   const queryLower = schemaSearchQuery.toLowerCase();
                                   if (line.toLowerCase().includes(queryLower)) {
@@ -888,7 +921,7 @@ export default function Page() {
                                       <span key={i}>
                                         {parts.map((part, j) => 
                                           part.toLowerCase() === queryLower ? (
-                                            <span key={j} className="bg-yellow-200 font-semibold">{part}</span>
+                                            <span key={j} className={`${searchHighlightBg} font-semibold`}>{part}</span>
                                           ) : (
                                             <span key={j}>{part}</span>
                                           )
@@ -901,7 +934,7 @@ export default function Page() {
                                 })}
                               </pre>
                             ) : (
-                              <pre className="whitespace-pre text-gray-800">{formatJson(newJson)}</pre>
+                              <pre className={`whitespace-pre ${jsonTextColor} transition-colors`}>{formatJson(newJson)}</pre>
                             )
                           )}
                         </div>
@@ -915,37 +948,37 @@ export default function Page() {
             {report && typeof score==="number" && (
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-2xl font-bold text-black mb-3">Migration Risk Assessment</h4>
-                  <p className="text-base text-gray-700">Comprehensive analysis of schema changes and migration risks</p>
+                  <h4 className={`text-2xl font-bold ${textColor} mb-3 transition-colors`}>Migration Risk Assessment</h4>
+                  <p className={`text-base ${mutedTextColor} transition-colors`}>Comprehensive analysis of schema changes and migration risks</p>
                 </div>
 
                 {/* Risk Score Card */}
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className={`${cardBgColor} border ${borderColor} rounded-lg p-6 transition-colors`}>
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                     <div>
-                      <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">Migration Risk Score</div>
+                      <div className={`text-sm font-semibold ${mutedTextColor} uppercase tracking-wide mb-1 transition-colors`}>Migration Risk Score</div>
                       <div className="flex items-baseline gap-2">
-                        <div className="text-5xl font-bold text-gray-900">{score}</div>
-                        <div className="text-2xl text-gray-500">/100</div>
+                        <div className={`text-5xl font-bold ${textColor} transition-colors`}>{score}</div>
+                        <div className={`text-2xl ${mutedTextColor} transition-colors`}>/100</div>
                       </div>
                     </div>
                     <div className="flex gap-8">
                       <div className="flex flex-col">
-                        <span className="text-sm text-gray-600 font-medium mb-1">Added</span>
+                        <span className={`text-sm ${mutedTextColor} font-medium mb-1 transition-colors`}>Added</span>
                         <span className="text-2xl font-bold text-green-600">{report.summary.added}</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm text-gray-600 font-medium mb-1">Removed</span>
-                        <span className="text-2xl font-bold text-[#D62311]">{report.summary.removed}</span>
+                        <span className={`text-sm ${mutedTextColor} font-medium mb-1 transition-colors`}>Removed</span>
+                        <span className={`text-2xl font-bold ${theme === "light" ? "text-[#D62311]" : "text-red-400"} transition-colors`}>{report.summary.removed}</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm text-gray-600 font-medium mb-1">Risky</span>
+                        <span className={`text-sm ${mutedTextColor} font-medium mb-1 transition-colors`}>Risky</span>
                         <span className="text-2xl font-bold text-amber-600">{report.summary.risky}</span>
                       </div>
                     </div>
                     <div className="shrink-0">
-                      <span className={`inline-flex items-center rounded-full px-6 py-3 text-base font-bold text-white ${
-                        score<31?"bg-green-600":score<71?"bg-amber-500":"bg-[#D62311]"
+                      <span className={`inline-flex items-center rounded-full px-6 py-3 text-base font-bold text-white transition-colors ${
+                        score<31?"bg-green-600":score<71?"bg-amber-500":theme === "light" ? "bg-[#D62311]" : "bg-[#76B900]"
                       }`}>
                         {score<31?"Low Risk":score<71?"Medium Risk":"High Risk"}
                       </span>
@@ -953,11 +986,11 @@ export default function Page() {
                   </div>
                   
                   {/* Download Buttons */}
-                  <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className={`mt-6 pt-6 border-t ${borderColor} transition-colors`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <h6 className="text-sm font-semibold text-gray-700 mb-2">Download Report</h6>
-                        <p className="text-xs text-gray-500">Export your migration analysis report</p>
+                        <h6 className={`text-sm font-semibold ${mutedTextColor} mb-2 transition-colors`}>Download Report</h6>
+                        <p className={`text-xs ${mutedTextColor} transition-colors`}>Export your migration analysis report</p>
                       </div>
                       <div className="flex gap-3">
                         <button
@@ -971,7 +1004,7 @@ export default function Page() {
                         </button>
                         <button
                           onClick={() => downloadPDF(report, score, oldJson, newJson, ragOutput)}
-                          className="px-4 py-2 bg-[#D62311] text-white font-semibold rounded-lg hover:bg-[#B41D0E] transition-colors text-sm flex items-center gap-2"
+                          className={`px-4 py-2 ${theme === "light" ? "bg-[#D62311] hover:bg-[#B41D0E]" : "bg-[#76B900] hover:bg-[#5A8F00]"} text-white font-semibold rounded-lg transition-colors text-sm flex items-center gap-2`}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -984,16 +1017,16 @@ export default function Page() {
                 </div>
 
                 {/* RAG Analysis Section */}
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className={`${cardBgColor} border ${borderColor} rounded-lg p-6 transition-colors`}>
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h5 className="text-lg font-semibold text-gray-900">AI-Powered Change Explanation</h5>
-                      <p className="text-sm text-gray-600 mt-1">Get an AI-generated explanation of the schema changes</p>
+                      <h5 className={`text-lg font-semibold ${textColor} transition-colors`}>AI-Powered Change Explanation</h5>
+                      <p className={`text-sm ${mutedTextColor} mt-1 transition-colors`}>Get an AI-generated explanation of the schema changes</p>
                     </div>
                     <button
                       onClick={analyzeWithRAG}
                       disabled={ragLoading || !report}
-                      className="px-4 py-2 bg-[#D62311] text-white font-semibold rounded-lg hover:bg-[#B41D0E] disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
+                      className={`px-4 py-2 ${theme === "light" ? "bg-[#D62311] hover:bg-[#B41D0E]" : "bg-[#76B900] hover:bg-[#5A8F00]"} text-white font-semibold rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm`}
                     >
                       {ragLoading ? "Analyzing..." : "Explain Changes with AI"}
                     </button>
@@ -1015,9 +1048,9 @@ export default function Page() {
                   )}
 
                   {ragLoading && (
-                    <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D62311]"></div>
+                    <div className={`mt-4 p-4 ${mutedBgColor} border ${borderColor} rounded-lg transition-colors`}>
+                      <div className={`flex items-center gap-2 text-sm ${mutedTextColor} transition-colors`}>
+                        <div className={`animate-spin rounded-full h-4 w-4 border-b-2 ${theme === "light" ? "border-[#D62311]" : "border-[#76B900]"} transition-colors`}></div>
                         <span>Analyzing changes with AI...</span>
                       </div>
                     </div>
@@ -1025,17 +1058,17 @@ export default function Page() {
                 </div>
 
                 {/* Change Summary Table */}
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="bg-[#D62311] px-6 py-4">
+                <div className={`${cardBgColor} border ${borderColor} rounded-lg overflow-hidden transition-colors`}>
+                  <div className={`${headerBgColor} px-6 py-4 transition-colors`}>
                     <h5 className="text-lg font-semibold text-white">Change Summary</h5>
-                    <p className="text-sm text-red-100 mt-1">Detailed breakdown of schema differences</p>
+                    <p className={`text-sm ${theme === "light" ? "text-red-100" : "text-green-100"} mt-1 transition-colors`}>Detailed breakdown of schema differences</p>
                   </div>
                   
                   {/* Search and Filter Controls */}
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 space-y-4">
+                  <div className={`px-6 py-4 ${mutedBgColor} border-b ${borderColor} space-y-4 transition-colors`}>
                     {/* Search Bar */}
                     <div>
-                      <label htmlFor="path-search" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="path-search" className={`block text-sm font-medium ${mutedTextColor} mb-2 transition-colors`}>
                         Search by Path
                       </label>
                       <input
@@ -1044,13 +1077,13 @@ export default function Page() {
                         placeholder="Search path names..."
                         value={searchQuery}
                         onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                        className="w-full rounded border border-gray-300 px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D62311] focus:border-transparent"
+                        className={`w-full rounded border ${borderColor} px-4 py-2 text-sm ${inputBgColor} ${textColor} focus:outline-none focus:ring-2 ${theme === "light" ? "focus:ring-[#D62311]" : "focus:ring-[#76B900]"} focus:border-transparent transition-colors`}
                       />
                     </div>
                     
                     {/* Filter Buttons */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className={`block text-sm font-medium ${mutedTextColor} mb-2 transition-colors`}>
                         Filter by Change Type
                       </label>
                       <div className="flex flex-wrap gap-2">
@@ -1058,8 +1091,8 @@ export default function Page() {
                           onClick={() => { setSelectedChangeType("ALL"); setCurrentPage(1); }}
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             selectedChangeType === "ALL"
-                              ? "bg-[#D62311] text-white"
-                              : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                              ? `${theme === "light" ? "bg-[#D62311]" : "bg-[#76B900]"} text-white`
+                              : `${cardBgColor} ${mutedTextColor} border ${borderColor} ${theme === "light" ? "hover:bg-gray-50" : "hover:bg-gray-800"}`
                           }`}
                         >
                           All ({report.changes.length})
@@ -1069,7 +1102,7 @@ export default function Page() {
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             selectedChangeType === "REMOVED_FIELD"
                               ? "bg-red-600 text-white"
-                              : "bg-white text-red-700 border border-red-300 hover:bg-red-50"
+                              : `${cardBgColor} text-red-700 border border-red-300 hover:bg-red-50/10`
                           }`}
                         >
                           Removed ({report.summary.removed})
@@ -1079,7 +1112,7 @@ export default function Page() {
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             selectedChangeType === "ADDED_FIELD"
                               ? "bg-green-600 text-white"
-                              : "bg-white text-green-700 border border-green-300 hover:bg-green-50"
+                              : `${cardBgColor} text-green-700 border border-green-300 hover:bg-green-50/10`
                           }`}
                         >
                           Added ({report.summary.added})
@@ -1089,7 +1122,7 @@ export default function Page() {
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             selectedChangeType === "TYPE_CHANGED"
                               ? "bg-amber-600 text-white"
-                              : "bg-white text-amber-700 border border-amber-300 hover:bg-amber-50"
+                              : `${cardBgColor} text-amber-700 border border-amber-300 hover:bg-amber-50/10`
                           }`}
                         >
                           Type Changed ({report.changes.filter(c => c.kind === "TYPE_CHANGED").length})
@@ -1100,14 +1133,14 @@ export default function Page() {
                     {/* Items Per Page and Pagination Controls */}
                     <div className="flex items-center justify-between flex-wrap gap-4">
                       <div className="flex items-center gap-2">
-                        <label htmlFor="items-per-page" className="text-sm font-medium text-gray-700">
+                        <label htmlFor="items-per-page" className={`text-sm font-medium ${mutedTextColor} transition-colors`}>
                           Items per page:
                         </label>
                         <select
                           id="items-per-page"
                           value={itemsPerPage}
                           onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                          className="rounded border border-gray-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D62311] focus:border-transparent"
+                          className={`rounded border ${borderColor} px-3 py-1.5 text-sm ${inputBgColor} ${textColor} focus:outline-none focus:ring-2 ${theme === "light" ? "focus:ring-[#D62311]" : "focus:ring-[#76B900]"} focus:border-transparent transition-colors`}
                         >
                           <option value={10}>10</option>
                           <option value={25}>25</option>
@@ -1119,14 +1152,14 @@ export default function Page() {
                   
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b border-gray-200">
+                      <thead className={`${mutedBgColor} border-b ${borderColor} transition-colors`}>
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Path</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Change Type</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Details</th>
+                          <th className={`px-6 py-3 text-left text-xs font-semibold ${mutedTextColor} uppercase tracking-wider transition-colors`}>Path</th>
+                          <th className={`px-6 py-3 text-left text-xs font-semibold ${mutedTextColor} uppercase tracking-wider transition-colors`}>Change Type</th>
+                          <th className={`px-6 py-3 text-left text-xs font-semibold ${mutedTextColor} uppercase tracking-wider transition-colors`}>Details</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className={`${cardBgColor} divide-y ${borderColor} transition-colors`}>
                         {(() => {
                           const filteredChanges = report.changes.filter((c) => {
                             // Filter by change type
@@ -1151,7 +1184,7 @@ export default function Page() {
                           if (filteredChanges.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
+                                <td colSpan={3} className={`px-6 py-8 text-center ${mutedTextColor} transition-colors`}>
                                   No changes found matching your filters.
                                 </td>
                               </tr>
@@ -1159,8 +1192,8 @@ export default function Page() {
                           }
 
                           return paginatedChanges.map((c, i) => (
-                            <tr key={startIndex + i} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-6 py-4 font-mono text-xs text-gray-900">{(c as any).path}</td>
+                            <tr key={startIndex + i} className={`${theme === "light" ? "hover:bg-gray-50" : "hover:bg-gray-800"} transition-colors`}>
+                              <td className={`px-6 py-4 font-mono text-xs ${textColor} transition-colors`}>{(c as any).path}</td>
                               <td className="px-6 py-4">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                                   c.kind === "REMOVED_FIELD" ? "bg-red-100 text-red-800" :
@@ -1170,7 +1203,7 @@ export default function Page() {
                                   {c.kind.replace(/_/g, " ")}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 text-gray-700">
+                              <td className={`px-6 py-4 ${mutedTextColor} transition-colors`}>
                                 {"oldType" in c && "newType" in c ? (
                                   <span className="font-medium">{`${(c as any).oldType} → ${(c as any).newType}`}</span>
                                 ) : "oldType" in c ? (
@@ -1178,7 +1211,7 @@ export default function Page() {
                                 ) : "newType" in c ? (
                                   <span className="text-green-700 font-medium">{(c as any).newType}</span>
                                 ) : (
-                                  <span className="text-gray-400">—</span>
+                                  <span className={mutedTextColor}>—</span>
                                 )}
                               </td>
                             </tr>
@@ -1241,8 +1274,8 @@ export default function Page() {
                     };
 
                     return (
-                      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-wrap gap-4">
-                        <div className="text-sm text-gray-700">
+                      <div className={`px-6 py-4 ${mutedBgColor} border-t ${borderColor} flex items-center justify-between flex-wrap gap-4 transition-colors`}>
+                        <div className={`text-sm ${mutedTextColor} transition-colors`}>
                           Showing <span className="font-medium">{startItem}</span> to <span className="font-medium">{endItem}</span> of{" "}
                           <span className="font-medium">{totalItems}</span> results
                         </div>
@@ -1250,22 +1283,22 @@ export default function Page() {
                           <button
                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                             disabled={currentPage === 1}
-                            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className={`px-3 py-2 text-sm font-medium ${mutedTextColor} ${cardBgColor} border ${borderColor} rounded-lg ${theme === "light" ? "hover:bg-gray-50" : "hover:bg-gray-800"} disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
                           >
                             Previous
                           </button>
                           <div className="flex items-center gap-1">
                             {getPageNumbers().map((page, idx) => (
                               page === "..." ? (
-                                <span key={`ellipsis-${idx}`} className="px-2 py-2 text-gray-500">...</span>
+                                <span key={`ellipsis-${idx}`} className={`px-2 py-2 ${mutedTextColor} transition-colors`}>...</span>
                               ) : (
                                 <button
                                   key={page}
                                   onClick={() => setCurrentPage(page as number)}
                                   className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                                     currentPage === page
-                                      ? "bg-[#D62311] text-white"
-                                      : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                                      ? `${theme === "light" ? "bg-[#D62311]" : "bg-[#76B900]"} text-white`
+                                      : `${mutedTextColor} ${cardBgColor} border ${borderColor} ${theme === "light" ? "hover:bg-gray-50" : "hover:bg-gray-800"}`
                                   }`}
                                 >
                                   {page}
@@ -1276,7 +1309,7 @@ export default function Page() {
                           <button
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                             disabled={currentPage === totalPages}
-                            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className={`px-3 py-2 text-sm font-medium ${mutedTextColor} ${cardBgColor} border ${borderColor} rounded-lg ${theme === "light" ? "hover:bg-gray-50" : "hover:bg-gray-800"} disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
                           >
                             Next
                           </button>
@@ -1289,17 +1322,17 @@ export default function Page() {
             )}
           </div>
 
-          {/* Right Column - Form Panel (Light Gray Background) */}
+          {/* Right Column - Form Panel */}
           <div className="lg:col-span-1 space-y-6">
             {/* Form Panel - Fixed/Sticky */}
-            <div className="bg-gray-100 rounded-lg p-6 top-8">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Ready to analyze your APIs?</h3>
+            <div className={`${theme === "light" ? "bg-gray-100" : "bg-gray-900"} rounded-lg p-6 top-8 transition-colors`}>
+              <h3 className={`text-lg font-bold ${textColor} mb-4 transition-colors`}>Ready to analyze your APIs?</h3>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Old API (URL or file)</label>
+                  <label className={`block text-sm font-semibold ${mutedTextColor} mb-2 transition-colors`}>Old API (URL or file)</label>
                   <input 
-                    className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D62311] focus:border-transparent" 
+                    className={`w-full rounded border ${borderColor} px-4 py-2.5 text-sm ${inputBgColor} ${textColor} focus:outline-none focus:ring-2 ${theme === "light" ? "focus:ring-[#D62311]" : "focus:ring-[#76B900]"} focus:border-transparent transition-colors`}
                     placeholder="Enter URL or select file"
                     value={oldUrl} 
                     onChange={e=>setOldUrl(e.target.value)} 
@@ -1308,14 +1341,14 @@ export default function Page() {
                     type="file" 
                     accept="application/json" 
                     onChange={e=>setOldFile(e.target.files?.[0]||null)}
-                    className="w-full mt-2 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:text-sm file:font-semibold file:bg-white file:text-[#D62311] file:border file:border-[#D62311] hover:file:bg-gray-50 cursor-pointer"
+                    className={`w-full mt-2 text-sm ${mutedTextColor} file:mr-4 file:py-2 file:px-4 file:rounded file:text-sm file:font-semibold ${theme === "light" ? "file:bg-white file:text-[#D62311] file:border-[#D62311] hover:file:bg-gray-50" : "file:bg-gray-800 file:text-[#76B900] file:border-[#76B900] hover:file:bg-gray-700"} file:border cursor-pointer transition-colors`}
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">New API (URL or file)</label>
+                  <label className={`block text-sm font-semibold ${mutedTextColor} mb-2 transition-colors`}>New API (URL or file)</label>
                   <input 
-                    className="w-full rounded border border-gray-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D62311] focus:border-transparent" 
+                    className={`w-full rounded border ${borderColor} px-4 py-2.5 text-sm ${inputBgColor} ${textColor} focus:outline-none focus:ring-2 ${theme === "light" ? "focus:ring-[#D62311]" : "focus:ring-[#76B900]"} focus:border-transparent transition-colors`}
                     placeholder="Enter URL or select file"
                     value={newUrl} 
                     onChange={e=>setNewUrl(e.target.value)} 
@@ -1324,7 +1357,7 @@ export default function Page() {
                     type="file" 
                     accept="application/json" 
                     onChange={e=>setNewFile(e.target.files?.[0]||null)}
-                    className="w-full mt-2 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:text-sm file:font-semibold file:bg-white file:text-[#D62311] file:border file:border-[#D62311] hover:file:bg-gray-50 cursor-pointer"
+                    className={`w-full mt-2 text-sm ${mutedTextColor} file:mr-4 file:py-2 file:px-4 file:rounded file:text-sm file:font-semibold ${theme === "light" ? "file:bg-white file:text-[#D62311] file:border-[#D62311] hover:file:bg-gray-50" : "file:bg-gray-800 file:text-[#76B900] file:border-[#76B900] hover:file:bg-gray-700"} file:border cursor-pointer transition-colors`}
                   />
                 </div>
 
@@ -1337,7 +1370,7 @@ export default function Page() {
                 <button 
                   onClick={analyze} 
                   disabled={loading} 
-                  className="w-full py-4 bg-[#D62311] text-white font-bold rounded-lg hover:bg-[#B41D0E] disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 text-base"
+                  className={`w-full py-4 ${theme === "light" ? "bg-[#D62311] hover:bg-[#B41D0E]" : "bg-[#76B900] hover:bg-[#5A8F00]"} text-white font-bold rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 text-base`}
                 >
                   {loading ? "Analyzing…" : "Analyze APIs"}
                 </button>
@@ -1346,16 +1379,16 @@ export default function Page() {
 
             {/* Risk Score Explanation Section */}
             {report && typeof score === "number" && (
-              <div className="bg-gray-100 rounded-lg p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Understanding Your Migration Risk Score</h3>
+              <div className={`${theme === "light" ? "bg-gray-100" : "bg-gray-900"} rounded-lg p-6 transition-colors`}>
+                <h3 className={`text-lg font-bold ${textColor} mb-4 transition-colors`}>Understanding Your Migration Risk Score</h3>
                 
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-gray-700 mb-3">
-                      Your Migration Risk Score of <span className="font-bold text-gray-900">{score}/100</span> indicates a{" "}
+                    <p className={`text-sm ${mutedTextColor} mb-3 transition-colors`}>
+                      Your Migration Risk Score of <span className={`font-bold ${textColor} transition-colors`}>{score}/100</span> indicates a{" "}
                       <span className={`font-bold ${
-                        score < 31 ? "text-green-600" : score < 71 ? "text-amber-600" : "text-[#D62311]"
-                      }`}>
+                        score < 31 ? "text-green-600" : score < 71 ? "text-amber-600" : theme === "light" ? "text-[#D62311]" : "text-[#76B900]"
+                      } transition-colors`}>
                         {score < 31 ? "Low Risk" : score < 71 ? "Medium Risk" : "High Risk"}
                       </span>{" "}
                       migration. This score is calculated based on the types and severity of changes detected between your API versions.
@@ -1363,8 +1396,8 @@ export default function Page() {
                   </div>
 
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Score Ranges:</h4>
-                    <div className="space-y-2 text-sm text-gray-700">
+                    <h4 className={`text-sm font-semibold ${textColor} mb-2 transition-colors`}>Score Ranges:</h4>
+                    <div className={`space-y-2 text-sm ${mutedTextColor} transition-colors`}>
                       <div className="flex items-start gap-2">
                         <span className="inline-flex items-center justify-center w-16 h-6 rounded bg-green-600 text-white text-xs font-bold shrink-0">0-30</span>
                         <span><strong>Low Risk:</strong> MINOR/PATCH level changes. Mostly backward-compatible additions that don't break existing clients.</span>
@@ -1374,17 +1407,17 @@ export default function Page() {
                         <span><strong>Medium Risk:</strong> Some breaking changes detected. Requires client code updates but migration is manageable.</span>
                       </div>
                       <div className="flex items-start gap-2">
-                        <span className="inline-flex items-center justify-center w-16 h-6 rounded bg-[#D62311] text-white text-xs font-bold shrink-0">71-100</span>
+                        <span className={`inline-flex items-center justify-center w-16 h-6 rounded ${theme === "light" ? "bg-[#D62311]" : "bg-[#76B900]"} text-white text-xs font-bold shrink-0 transition-colors`}>71-100</span>
                         <span><strong>High Risk:</strong> MAJOR breaking changes. Significant API overhaul requiring extensive client-side refactoring.</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="border-t border-gray-300 pt-4">
-                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Scoring Criteria:</h4>
-                    <div className="space-y-2 text-sm text-gray-700">
+                  <div className={`border-t ${borderColor} pt-4 transition-colors`}>
+                    <h4 className={`text-sm font-semibold ${textColor} mb-2 transition-colors`}>Scoring Criteria:</h4>
+                    <div className={`space-y-2 text-sm ${mutedTextColor} transition-colors`}>
                       <div className="flex items-start gap-2">
-                        <span className="text-[#D62311] font-bold shrink-0">•</span>
+                        <span className={`${theme === "light" ? "text-[#D62311]" : "text-[#76B900]"} font-bold shrink-0 transition-colors`}>•</span>
                         <div>
                           <strong>Removed Fields (40 points):</strong> Fields that were deleted from the API. 
                           This is the most severe change as it completely breaks clients using these fields.

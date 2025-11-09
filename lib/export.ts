@@ -176,7 +176,7 @@ export function downloadPDF(
   
   // Title
   doc.setFontSize(20);
-  doc.setTextColor(214, 35, 17); // StateFarm red
+  doc.setTextColor(214, 35, 17);
   doc.text("API Schema Migration Analysis Report", 14, yPosition);
   yPosition += 10;
   
