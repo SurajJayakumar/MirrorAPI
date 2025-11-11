@@ -1,6 +1,14 @@
 # MirrorAPI
 
-A developer tool that compares two API responses, detects breaking changes, scores the migration risk, and generates a structured change report.  
+- Imagine you're a developer at a large firm working with a massive codebase.
+- You use 100s of APIs.
+- One day one of the APIs you use gets upgraded and now sends different fields in its JSON response.
+- Now it's your job to sit there and painfully play spot the difference between the responses of the old and new versions of APIs.
+- There should be a way to automate this.....
+
+
+  
+Enter MIRROR API! A developer tool that compares two API responses, detects breaking changes, scores the migration risk, and generates a structured change report.  
 Built with **Next.js 14 (App Router)**, **TypeScript**, **Tailwind + shadcn/ui**, and a deterministic JSON diff engine.
 
 ---
